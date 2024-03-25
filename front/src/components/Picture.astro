@@ -1,0 +1,21 @@
+---
+import config from "../config";
+const { pic } = Astro.props;
+
+const { image, userName, hashtags, userId } = pic;
+
+function replaceHashtagsWithLinks(text) {
+    return text.replace(/#(\w+)/g, '<a href="/hashtag/$1">#$1</a>');
+}
+---
+
+<div class="p-2 border border-violet-500 rounded-lg">
+    <h2 class="text-center bg-violet-500 text-white">
+        <a href={"/user/" + userName}>{userName}</a>
+    </h2>
+    <img src={`${config.IMG_URL}/${image}`} alt={image} width="400px" />
+
+    <h1 class="text-center bg-violet-500 text-white">
+        <Fragment set:html={replaceHashtagsWithLinks(hashtags)} />
+    </h1>
+</div>

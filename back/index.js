@@ -85,7 +85,75 @@ app.get('/api/refresh', checkToken, async (req, res) => {
     return res.json({ id: user.id, name: user.name })
 })
 
+//Function to create a new user
+app.post('/api/register', (req, res) => {
+    const { name, password } = req.body;
+    const users = readUsers();
 
+    //Checks if name is already in use
+    if (user.find(user => user.name === name)) {
+        return res.status(400).json({ error: 'Name already exists' })
+    }
+
+    const id = uuid();
+    const newUser = { id, name, password: bcrypt.hashSync(password, 8) };
+    users.push(newUser);
+    writeUsers(users);
+    res.json({ message: 'User registered successfully' });
+});
+
+//Multer settings to manage file uploading
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'tmp') //Specifies destination folder
+    },
+    filename: function (req, file, cb) {
+        cb(null, `${Date.now()}_${file.originalname}`) //Sets unic name to uploaded files
+    }
+});
+
+const upload = multer({ storage: storage }); //Configurates multer to manage the uploading of a unique file with "foto" field
+
+//Function to upload an image with hashtags
+app.post('/api/upload', checkToken, upload.single('image'), async (req, res) => {
+    const { userId, hashtags } = req.body;
+    const image = req.file;
+
+    //Resize image before saving it
+    try {
+        await sharp(image.path)
+            .resize({ width: 800 })
+            .toFile(`${imagesFolder}/${image.filename}`)
+            .then(async () => {
+                //Delete original image after resize
+                await fs.unlink(image.path, (err) => err ? console.log(err) : () => { });
+            });
+    } catch (error) {
+        //Throw error
+        return res.status(500).json({ error: 'Failed to process image xx' });
+    }
+
+    //Save image information in images.json file
+    const images = readImages();
+    images.push({ userId: req.userId, filename: image.filename, hashtag });
+    fs.writeFileSync(imagesFile, JSON.stringify(images, null, 2));
+
+    res.json({ message: 'Image uploaded successfully' });
+});
+
+//Endpoint to get a user's images
+app.get('/api/user/:userId/images', checkToken, (req, res) => {
+    const userId = req.params.userId;
+    const userImages = readImages().filter(image => image.userId === userId);
+    res.json(userImages);
+});
+
+//Endpoint to get images by hashtag
+app.get('/api/images/:hashtag', checkToken, (req, res) => {
+    const hashtag = req.params.hashtag;
+    const hashtagImages = readImages().filter(image => image.hashtags.includes(hashtag));
+    res.json(hashtagImages);
+});
 
 const PORT = 3000;
 app.listen(PORT, () => {
